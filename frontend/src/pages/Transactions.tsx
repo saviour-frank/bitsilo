@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect, forwardRef } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Chip } from '@/components/shared/Chip';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { MOCK_TRANSACTIONS } from '@/lib/constants';
 import { formatBtc, formatShares, formatRelativeTime, getExplorerUrl } from '@/lib/formatting';
 import { useApp } from '@/contexts/AppContext';
 import { ExternalLink, ArrowRight, ChevronLeft, ChevronRight, ArrowDownToLine, ArrowUpFromLine, Wallet } from 'lucide-react';
@@ -19,7 +18,7 @@ const Transactions = forwardRef<HTMLElement>((_, ref) => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [page, setPage] = useState(1);
 
-  const allTransactions = state.wallet.isConnected ? MOCK_TRANSACTIONS : [];
+  const allTransactions = state.wallet.isConnected ? state.transactions : [];
 
   const filtered = useMemo(() => {
     return allTransactions.filter((tx) => {

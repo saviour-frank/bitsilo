@@ -10,13 +10,13 @@ import { VaultOverview } from '@/components/vault/VaultOverview';
 import { ActivityFeed } from '@/components/vault/ActivityFeed';
 import { DevToolsPanel } from '@/components/vault/DevToolsPanel';
 import { getExplorerUrl } from '@/lib/formatting';
-import { MOCK_TRANSACTIONS } from '@/lib/constants';
 import { TransactionStep } from '@/lib/types';
+import { deposit, withdraw, btcToSats, displayToShares } from '@/lib/stacks';
 import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
 
 const Vault = forwardRef<HTMLElement>((_, ref) => {
   useEffect(() => { document.title = 'Vault | BitSilo'; }, []);
-  const { state, dispatch } = useApp();
+  const { state, handleConnect, refreshVault, refreshUser, refreshTransactions } = useApp();
   const { vault, wallet, userPosition, sbtcBalance, vaultLoading } = state;
   const [tab, setTab] = useState('Deposit');
   const [amount, setAmount] = useState('');
@@ -26,6 +26,7 @@ const Vault = forwardRef<HTMLElement>((_, ref) => {
   const [devPaused, setDevPaused] = useState<boolean | null>(null);
   const [devDeposits, setDevDeposits] = useState<number | null>(null);
   const [buttonState, setButtonState] = useState<'idle' | 'loading' | 'success'>('idle');
+  const [txId, setTxId] = useState<string | undefined>();
 
   const effectiveStatus = devPaused !== null ? (devPaused ? 'paused' : 'active') : vault.status;
   const effectiveDeposits = devDeposits !== null ? devDeposits : vault.currentDeposits;
@@ -51,12 +52,7 @@ const Vault = forwardRef<HTMLElement>((_, ref) => {
   const fillPercent = Math.min((effectiveDeposits / vault.depositCap) * 100, 100);
   const capBarColor = fillPercent >= 100 ? 'bg-destructive' : fillPercent >= 90 ? 'bg-warning' : 'bg-primary';
 
-  const handleConnect = () => {
-    dispatch({
-      type: 'CONNECT_WALLET',
-      payload: { address: 'ST24B7YS18HAXNQDRGFKYGHYZE9HCASG5MJ241M', network: 'testnet' },
-    });
-  };
+
 
   const handleSubmit = () => {
     setButtonState('loading');
@@ -67,49 +63,52 @@ const Vault = forwardRef<HTMLElement>((_, ref) => {
     }, 600);
   };
 
-  const mockTxId = '0x8a3f...4e2b';
-  const explorerUrl = getExplorerUrl(mockTxId);
-
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = useCallback(async () => {
     setErrorCode(undefined);
+    setTxId(undefined);
     setTxStep('confirming');
-    setTimeout(() => setTxStep('broadcasting'), 2000);
-    setTimeout(() => {
-      const shouldFail = Math.random() < 0.2;
-      if (shouldFail) {
-        const codes = ['u100', 'u101', 'u102', 'u103', 'u104'];
-        const code = codes[Math.floor(Math.random() * codes.length)];
-        setErrorCode(code);
-        setTxStep('failed');
-        toast.error('Transaction failed', {
-          description: ERROR_MAP[code] || 'An unexpected error occurred.',
-        });
-        return;
+    try {
+      let result: { txId: string };
+      if (tab === 'Deposit') {
+        result = await deposit(btcToSats(numericAmount), wallet.address!);
+      } else {
+        result = await withdraw(displayToShares(numericAmount));
       }
+      setTxId(result.txId);
       setTxStep('pending');
+      const url = getExplorerUrl(result.txId);
       toast('Transaction submitted', {
         description: 'Waiting for on-chain confirmation…',
-        action: {
-          label: 'View on Explorer',
-          onClick: () => window.open(explorerUrl, '_blank'),
-        },
+        action: { label: 'View on Explorer', onClick: () => window.open(url, '_blank') },
       });
-    }, 3500);
-    setTimeout(() => {
-      setTxStep((prev) => {
-        if (prev === 'failed') return prev;
-        setButtonState('success');
-        toast.success('Transaction confirmed', {
-          description: `${tab === 'Deposit' ? 'Deposit' : 'Withdrawal'} completed successfully.`,
-          action: {
-            label: 'View on Explorer',
-            onClick: () => window.open(explorerUrl, '_blank'),
-          },
+      // Refresh data after a short delay for mempool propagation
+      setTimeout(() => {
+        refreshVault();
+        refreshUser();
+        refreshTransactions();
+      }, 5000);
+      setButtonState('success');
+      setTxStep('confirmed');
+      toast.success('Transaction broadcast', {
+        description: `${tab === 'Deposit' ? 'Deposit' : 'Withdrawal'} submitted successfully.`,
+        action: { label: 'View on Explorer', onClick: () => window.open(url, '_blank') },
+      });
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      // Check for known contract error codes
+      const codeMatch = msg.match(/u(\d{3})/);
+      if (codeMatch) {
+        setErrorCode(codeMatch[0]);
+        setTxStep('failed');
+        toast.error('Transaction failed', {
+          description: ERROR_MAP[codeMatch[0]] || msg,
         });
-        return 'confirmed';
-      });
-    }, 4500);
-  }, [tab, explorerUrl]);
+      } else {
+        setTxStep('failed');
+        toast.error('Transaction failed', { description: msg });
+      }
+    }
+  }, [tab, numericAmount, wallet.address, refreshVault, refreshUser, refreshTransactions]);
 
   const handleModalClose = useCallback(() => {
     setTxStep('idle');
@@ -208,7 +207,7 @@ const Vault = forwardRef<HTMLElement>((_, ref) => {
 
           <ActivityFeed
             loading={vaultLoading}
-            transactions={MOCK_TRANSACTIONS.slice(0, 6)}
+            transactions={state.transactions.slice(0, 6)}
           />
         </div>
       </div>
@@ -222,7 +221,7 @@ const Vault = forwardRef<HTMLElement>((_, ref) => {
         sharePrice={vault.sharePrice}
         onConfirm={handleConfirm}
         onClose={handleModalClose}
-        txId="0x8a3f...4e2b"
+        txId={txId}
         errorCode={errorCode}
       />
 
