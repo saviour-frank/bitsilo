@@ -182,3 +182,45 @@
     (ok true)
   )
 )
+
+;; -----------------------------------------------
+;; Read-Only Functions
+;; -----------------------------------------------
+
+(define-read-only (get-shares (who principal))
+  (ok (default-to u0 (map-get? user-shares who)))
+)
+
+(define-read-only (get-total-sbtc)
+  (ok (var-get total-sbtc))
+)
+
+(define-read-only (get-total-shares)
+  (ok (var-get total-shares))
+)
+
+(define-read-only (preview-withdraw (share-amount uint))
+  (ok (calculate-sbtc-for-shares share-amount))
+)
+
+(define-read-only (get-deposit-cap)
+  (ok (var-get deposit-cap))
+)
+
+(define-read-only (is-paused)
+  (ok (var-get vault-paused))
+)
+
+(define-read-only (get-share-price)
+  (let
+    (
+      (current-total-sbtc (var-get total-sbtc))
+      (current-total-shares (var-get total-shares))
+    )
+    (if (is-eq current-total-shares u0)
+      (ok SHARE_PRECISION)
+      (ok (/ (* current-total-sbtc SHARE_PRECISION) current-total-shares))
+    )
+  )
+)
+
