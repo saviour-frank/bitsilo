@@ -81,3 +81,62 @@
       transfer amount current-contract recipient none))
   )
 )
+
+;; -----------------------------------------------
+;; Public Functions
+;; -----------------------------------------------
+
+;; Deposit sBTC into the vault.
+;; Transfers sBTC from the sender to the vault contract, mints shares.
+(define-public (deposit (sbtc-amount uint))
+  (let
+    (
+      (sender tx-sender)
+      (shares-to-mint (calculate-shares-to-mint sbtc-amount))
+      (current-user-shares (default-to u0 (map-get? user-shares sender)))
+      (new-total-sbtc (+ (var-get total-sbtc) sbtc-amount))
+    )
+    ;; Guards
+    (asserts! (not (var-get vault-paused)) ERR_VAULT_PAUSED)
+    (asserts! (> sbtc-amount u0) ERR_ZERO_AMOUNT)
+    (asserts! (<= new-total-sbtc (var-get deposit-cap)) ERR_DEPOSIT_CAP_EXCEEDED)
+
+    ;; Transfer sBTC from sender to this contract
+    (try! (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+      transfer sbtc-amount sender current-contract none))
+
+    ;; Update state
+    (var-set total-sbtc new-total-sbtc)
+    (var-set total-shares (+ (var-get total-shares) shares-to-mint))
+    (map-set user-shares sender (+ current-user-shares shares-to-mint))
+
+    (print {event: "deposit", sender: sender, sbtc-amount: sbtc-amount, shares-minted: shares-to-mint})
+    (ok shares-to-mint)
+  )
+)
+
+;; Withdraw sBTC from the vault by burning shares.
+;; Burns the specified shares and returns proportional sBTC.
+(define-public (withdraw (share-amount uint))
+  (let
+    (
+      (sender tx-sender)
+      (current-user-shares (default-to u0 (map-get? user-shares sender)))
+      (sbtc-to-return (calculate-sbtc-for-shares share-amount))
+    )
+    ;; Guards
+    (asserts! (> share-amount u0) ERR_ZERO_AMOUNT)
+    (asserts! (>= current-user-shares share-amount) ERR_INSUFFICIENT_SHARES)
+
+    ;; Transfer sBTC from vault contract back to sender
+    (try! (transfer-sbtc-out sbtc-to-return sender))
+
+    ;; Update state
+    (var-set total-sbtc (- (var-get total-sbtc) sbtc-to-return))
+    (var-set total-shares (- (var-get total-shares) share-amount))
+    (map-set user-shares sender (- current-user-shares share-amount))
+
+    (print {event: "withdraw", sender: sender, shares-burned: share-amount, sbtc-returned: sbtc-to-return})
+    (ok sbtc-to-return)
+  )
+)
