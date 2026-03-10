@@ -88,50 +88,50 @@ async function readVault(
   });
 }
 
-/** get-total-sbtc -> uint (in sats) */
+/** get-total-sbtc -> (ok uint) in sats */
 export async function getTotalSbtc(): Promise<bigint> {
   const cv = await readVault('get-total-sbtc');
-  return BigInt(cvToValue(cv));
+  return BigInt(cvToValue(cv, true));
 }
 
-/** get-total-shares -> uint */
+/** get-total-shares -> (ok uint) */
 export async function getTotalShares(): Promise<bigint> {
   const cv = await readVault('get-total-shares');
-  return BigInt(cvToValue(cv));
+  return BigInt(cvToValue(cv, true));
 }
 
-/** get-share-price -> uint (scaled by SHARE_PRECISION) */
+/** get-share-price -> (ok uint) scaled by SHARE_PRECISION */
 export async function getSharePrice(): Promise<bigint> {
   const cv = await readVault('get-share-price');
-  return BigInt(cvToValue(cv));
+  return BigInt(cvToValue(cv, true));
 }
 
-/** get-deposit-cap -> uint (in sats) */
+/** get-deposit-cap -> (ok uint) in sats */
 export async function getDepositCap(): Promise<bigint> {
   const cv = await readVault('get-deposit-cap');
-  return BigInt(cvToValue(cv));
+  return BigInt(cvToValue(cv, true));
 }
 
-/** is-paused -> bool */
+/** is-paused -> (ok bool) */
 export async function isPaused(): Promise<boolean> {
   const cv = await readVault('is-paused');
-  return cvToValue(cv) as boolean;
+  return cvToValue(cv, true) as boolean;
 }
 
-/** get-shares for a specific principal -> uint */
+/** get-shares for a specific principal -> (ok uint) */
 export async function getUserShares(principal: string): Promise<bigint> {
   const cv = await readVault(
     'get-shares',
     [Cl.standardPrincipal(principal)],
     principal,
   );
-  return BigInt(cvToValue(cv));
+  return BigInt(cvToValue(cv, true));
 }
 
-/** preview-withdraw -> uint (sBTC in sats the user would get for `shareAmount` shares) */
+/** preview-withdraw -> (ok uint) sBTC in sats for given shares */
 export async function previewWithdraw(shareAmount: bigint): Promise<bigint> {
   const cv = await readVault('preview-withdraw', [Cl.uint(shareAmount)]);
-  return BigInt(cvToValue(cv));
+  return BigInt(cvToValue(cv, true));
 }
 
 /** Get sBTC balance for a principal */

@@ -1,12 +1,13 @@
 import { useApp } from '@/contexts/AppContext';
 import { Wallet, ChevronDown, Copy, LogOut, Check } from 'lucide-react';
-import { truncateAddress } from '@/lib/formatting';
+import { truncateAddress, formatBtc } from '@/lib/formatting';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -67,7 +68,18 @@ export function ConnectButton() {
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-52 bg-surface-2 border-border/50">
+      <DropdownMenuContent align="end" className="w-56 bg-surface-2 border-border/50">
+        <div className="px-4 py-3">
+          <p className="text-xs text-muted-foreground">sBTC Balance</p>
+          <p className="font-mono text-sm font-semibold text-foreground">{formatBtc(state.sbtcBalance)}</p>
+          {state.userPosition && (
+            <>
+              <p className="mt-2 text-xs text-muted-foreground">Vault Shares</p>
+              <p className="font-mono text-sm font-semibold text-foreground">{state.userPosition.shares.toFixed(6)}</p>
+            </>
+          )}
+        </div>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleCopy} className="gap-2.5 px-4 py-3 cursor-pointer">
           {copied ? (
             <Check className="h-4 w-4 text-success" />
