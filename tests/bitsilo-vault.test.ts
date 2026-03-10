@@ -96,3 +96,43 @@ describe("bitsilo-vault", () => {
     );
     expect(result).toBeErr(Cl.uint(101)); // ERR_ZERO_AMOUNT
   });
+
+  it("rejects withdrawal with insufficient shares", () => {
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "withdraw", [Cl.uint(100)], wallet1
+    );
+    expect(result).toBeErr(Cl.uint(102)); // ERR_INSUFFICIENT_SHARES
+  });
+
+  it("allows full withdrawal and returns correct sBTC", () => {
+    const depositAmount = 5000;
+
+    // Deposit
+    simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "deposit", [Cl.uint(depositAmount)], wallet1
+    );
+
+    const sharesToBurn = depositAmount * SHARE_PRECISION;
+
+    // Withdraw all shares
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "withdraw", [Cl.uint(sharesToBurn)], wallet1
+    );
+    expect(result).toBeOk(Cl.uint(depositAmount));
+
+    // Vault should be empty
+    const totalSbtc = simnet.callReadOnlyFn(
+      `${deployer}.bitsilo-vault`, "get-total-sbtc", [], deployer
+    );
+    expect(totalSbtc.result).toBeOk(Cl.uint(0));
+  });
+
+  // -----------------------------------------------
+  // Yield drip
+  // -----------------------------------------------
+  it("only owner can drip yield", () => {
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "drip-yield", [Cl.uint(500)], wallet1
+    );
+    expect(result).toBeErr(Cl.uint(100)); // ERR_NOT_OWNER
+  });
