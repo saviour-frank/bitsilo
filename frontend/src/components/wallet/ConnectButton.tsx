@@ -11,16 +11,22 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 export function ConnectButton() {
-  const { state, dispatch } = useApp();
+  const { state, handleConnect, handleDisconnect } = useApp();
   const [copied, setCopied] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
-  const handleConnect = () => {
-    const address = 'ST24B7YS18HAXNQDRGFKYGHYZE9HCASG5MJ241M';
-    dispatch({
-      type: 'CONNECT_WALLET',
-      payload: { address, network: 'testnet' },
-    });
-    toast.success('Wallet connected', { description: truncateAddress(address) });
+  const onConnect = async () => {
+    setConnecting(true);
+    try {
+      await handleConnect();
+      if (state.wallet.address) {
+        toast.success('Wallet connected', { description: truncateAddress(state.wallet.address) });
+      }
+    } catch (e) {
+      toast.error('Connection failed', { description: 'Could not connect wallet.' });
+    } finally {
+      setConnecting(false);
+    }
   };
 
   const handleCopy = async () => {
@@ -35,12 +41,13 @@ export function ConnectButton() {
     return (
       <button
         data-wallet-connect
-        onClick={handleConnect}
+        onClick={onConnect}
+        disabled={connecting}
         aria-label="Connect wallet"
-        className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-150 hover:bg-primary/90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-150 hover:bg-primary/90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60"
       >
         <Wallet className="h-4 w-4" />
-        <span className="hidden sm:inline">Connect Wallet</span>
+        <span className="hidden sm:inline">{connecting ? 'Connecting…' : 'Connect Wallet'}</span>
       </button>
     );
   }
@@ -70,7 +77,7 @@ export function ConnectButton() {
           {copied ? 'Copied!' : 'Copy Address'}
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => { dispatch({ type: 'DISCONNECT_WALLET' }); toast('Wallet disconnected'); }}
+          onClick={() => { handleDisconnect(); toast('Wallet disconnected'); }}
           className="gap-2.5 px-4 py-3 text-destructive focus:text-destructive cursor-pointer"
         >
           <LogOut className="h-4 w-4" />
