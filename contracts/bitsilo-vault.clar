@@ -140,3 +140,45 @@
     (ok sbtc-to-return)
   )
 )
+
+;; -----------------------------------------------
+;; Owner-only Functions
+;; -----------------------------------------------
+
+;; Drip yield: owner deposits additional sBTC to increase the value of all shares
+(define-public (drip-yield (sbtc-amount uint))
+  (begin
+    (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_NOT_OWNER)
+    (asserts! (> sbtc-amount u0) ERR_ZERO_AMOUNT)
+
+    ;; Transfer sBTC from owner to vault
+    (try! (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+      transfer sbtc-amount tx-sender current-contract none))
+
+    ;; Increase total sBTC without minting new shares -- everyone's shares grow
+    (var-set total-sbtc (+ (var-get total-sbtc) sbtc-amount))
+
+    (print {event: "drip-yield", amount: sbtc-amount, new-total-sbtc: (var-get total-sbtc)})
+    (ok true)
+  )
+)
+
+;; Pause / unpause the vault
+(define-public (set-vault-paused (paused bool))
+  (begin
+    (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_NOT_OWNER)
+    (var-set vault-paused paused)
+    (print {event: "set-paused", paused: paused})
+    (ok true)
+  )
+)
+
+;; Update the deposit cap
+(define-public (set-deposit-cap (new-cap uint))
+  (begin
+    (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_NOT_OWNER)
+    (var-set deposit-cap new-cap)
+    (print {event: "set-deposit-cap", new-cap: new-cap})
+    (ok true)
+  )
+)
