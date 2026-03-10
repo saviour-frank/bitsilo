@@ -9,7 +9,6 @@ import { ActivityFeed } from '@/components/vault/ActivityFeed';
 import { Progress } from '@/components/ui/progress';
 import { Chip } from '@/components/shared/Chip';
 import { formatBtc, formatPercent } from '@/lib/formatting';
-import { MOCK_TRANSACTIONS } from '@/lib/constants';
 import { ArrowRight, Wallet } from 'lucide-react';
 
 const Dashboard = forwardRef<HTMLElement>((_, ref) => {
@@ -18,7 +17,7 @@ const Dashboard = forwardRef<HTMLElement>((_, ref) => {
   }, []);
 
   const { state } = useApp();
-  const { vault, userPosition, vaultLoading } = state;
+  const { vault, userPosition, vaultLoading, transactions } = state;
   const capacityPct = vault.depositCap > 0 ? (vault.currentDeposits / vault.depositCap) * 100 : 0;
 
   return (
@@ -149,7 +148,7 @@ const Dashboard = forwardRef<HTMLElement>((_, ref) => {
 
       {/* Recent Activity */}
       <section className="mt-6" aria-label="Recent activity">
-        <ActivityFeed loading={vaultLoading} transactions={MOCK_TRANSACTIONS.slice(0, 10)} />
+        <ActivityFeed loading={vaultLoading} transactions={transactions.slice(0, 10)} />
       </section>
     </PageContainer>
   );
