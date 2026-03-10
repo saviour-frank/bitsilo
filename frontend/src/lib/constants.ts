@@ -1,7 +1,8 @@
-export const VAULT_CONTRACT = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.bitsilo-vault-v1';
-export const EXPLORER_BASE = 'https://explorer.hiro.so';
-export const NETWORK = 'testnet';
+// Re-export network config from the blockchain service layer
+import { VAULT_CONTRACT, SBTC_CONTRACT, NETWORK, EXPLORER_BASE } from './stacks';
+export { VAULT_CONTRACT, SBTC_CONTRACT, NETWORK, EXPLORER_BASE };
 
+// Mock data used as initial/fallback state before on-chain data loads
 export const MOCK_VAULT_DATA = {
   name: 'BitSilo Vault v1',
   tvl: 12.45678901,
