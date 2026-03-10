@@ -38,3 +38,46 @@
 ;; Data Maps
 ;; -----------------------------------------------
 (define-map user-shares principal uint)
+
+;; -----------------------------------------------
+;; Private Functions
+;; -----------------------------------------------
+
+;; Calculate shares to mint for a given sBTC deposit
+(define-private (calculate-shares-to-mint (sbtc-amount uint))
+  (let
+    (
+      (current-total-sbtc (var-get total-sbtc))
+      (current-total-shares (var-get total-shares))
+    )
+    (if (is-eq current-total-shares u0)
+      ;; First deposit: 1:1 ratio with precision multiplier
+      (* sbtc-amount SHARE_PRECISION)
+      ;; Subsequent deposits: proportional to existing pool
+      (/ (* sbtc-amount current-total-shares) current-total-sbtc)
+    )
+  )
+)
+
+;; Calculate sBTC to return for a given share amount
+(define-private (calculate-sbtc-for-shares (share-amount uint))
+  (let
+    (
+      (current-total-sbtc (var-get total-sbtc))
+      (current-total-shares (var-get total-shares))
+    )
+    (if (is-eq current-total-shares u0)
+      u0
+      (/ (* share-amount current-total-sbtc) current-total-shares)
+    )
+  )
+)
+
+;; Transfer sBTC out of the vault (contract context) to a recipient
+(define-private (transfer-sbtc-out (amount uint) (recipient principal))
+  (as-contract?
+    ((with-ft 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token "sbtc-token" amount))
+    (try! (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+      transfer amount current-contract recipient none))
+  )
+)
