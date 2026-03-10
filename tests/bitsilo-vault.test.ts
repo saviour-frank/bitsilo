@@ -136,3 +136,110 @@ describe("bitsilo-vault", () => {
     );
     expect(result).toBeErr(Cl.uint(100)); // ERR_NOT_OWNER
   });
+
+  it("drip-yield increases share value for depositors", () => {
+    const depositAmount = 1000;
+    const yieldAmount = 200;
+
+    // wallet1 deposits
+    simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "deposit", [Cl.uint(depositAmount)], wallet1
+    );
+
+    // Deployer drips yield (deployer also has sBTC from boot)
+    simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "drip-yield", [Cl.uint(yieldAmount)], deployer
+    );
+
+    // Total sBTC should reflect deposit + yield
+    const totalSbtc = simnet.callReadOnlyFn(
+      `${deployer}.bitsilo-vault`, "get-total-sbtc", [], deployer
+    );
+    expect(totalSbtc.result).toBeOk(Cl.uint(depositAmount + yieldAmount));
+
+    // Preview withdraw should show full amount for all shares
+    const shares = depositAmount * SHARE_PRECISION;
+    const preview = simnet.callReadOnlyFn(
+      `${deployer}.bitsilo-vault`, "preview-withdraw", [Cl.uint(shares)], wallet1
+    );
+    expect(preview.result).toBeOk(Cl.uint(depositAmount + yieldAmount));
+  });
+
+  // -----------------------------------------------
+  // Multi-depositor scenario
+  // -----------------------------------------------
+  it("handles two depositors and proportional withdrawal", () => {
+    const amount1 = 3000;
+    const amount2 = 1000;
+
+    // wallet1 deposits first
+    simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "deposit", [Cl.uint(amount1)], wallet1
+    );
+
+    // wallet2 deposits second
+    simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "deposit", [Cl.uint(amount2)], wallet2
+    );
+
+    // Total should be amount1 + amount2
+    const totalSbtc = simnet.callReadOnlyFn(
+      `${deployer}.bitsilo-vault`, "get-total-sbtc", [], deployer
+    );
+    expect(totalSbtc.result).toBeOk(Cl.uint(amount1 + amount2));
+
+    // wallet1 has 75% of shares, wallet2 has 25%
+    const shares1 = simnet.callReadOnlyFn(
+      `${deployer}.bitsilo-vault`, "get-shares", [Cl.principal(wallet1)], wallet1
+    );
+    const shares2 = simnet.callReadOnlyFn(
+      `${deployer}.bitsilo-vault`, "get-shares", [Cl.principal(wallet2)], wallet2
+    );
+
+    // wallet1's shares = 3000 * PRECISION (first depositor)
+    expect(shares1.result).toBeOk(Cl.uint(amount1 * SHARE_PRECISION));
+    // wallet2's shares = 1000 * (3000 * PRECISION) / 3000 = 1000 * PRECISION
+    expect(shares2.result).toBeOk(Cl.uint(amount2 * SHARE_PRECISION));
+  });
+
+  // -----------------------------------------------
+  // Admin controls
+  // -----------------------------------------------
+  it("only owner can pause the vault", () => {
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "set-vault-paused", [Cl.bool(true)], wallet1
+    );
+    expect(result).toBeErr(Cl.uint(100));
+  });
+
+  it("deposits are blocked when vault is paused", () => {
+    // Pause
+    simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "set-vault-paused", [Cl.bool(true)], deployer
+    );
+
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "deposit", [Cl.uint(1000)], wallet1
+    );
+    expect(result).toBeErr(Cl.uint(103)); // ERR_VAULT_PAUSED
+  });
+
+  it("owner can update deposit cap", () => {
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "set-deposit-cap", [Cl.uint(5000)], deployer
+    );
+    expect(result).toBeOk(Cl.bool(true));
+
+    const cap = simnet.callReadOnlyFn(
+      `${deployer}.bitsilo-vault`, "get-deposit-cap", [], deployer
+    );
+    expect(cap.result).toBeOk(Cl.uint(5000));
+  });
+
+  it("non-owner cannot update deposit cap", () => {
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "set-deposit-cap", [Cl.uint(5000)], wallet1
+    );
+    expect(result).toBeErr(Cl.uint(100));
+  });
+});
