@@ -1,0 +1,34 @@
+[project]
+name = 'bitsilo'
+description = 'sBTC Micro-Yield Vault — Stack your sats. Grow your yield.'
+authors = []
+telemetry = false
+cache_dir = './.cache'
+
+[[project.requirements]]
+contract_id = 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token'
+
+[contracts.bitsilo-traits]
+path = 'contracts/bitsilo-traits.clar'
+clarity_version = 4
+epoch = 'latest'
+
+[contracts.bitsilo-vault]
+path = 'contracts/bitsilo-vault.clar'
+clarity_version = 4
+epoch = 'latest'
+
+[repl.analysis]
+passes = ['check_checker']
+
+[repl.analysis.lints]
+
+[repl.analysis.check_checker]
+strict = false
+trusted_sender = false
+trusted_caller = false
+callee_filter = false
+
+[repl.remote_data]
+enabled = false
+api_url = 'https://api.hiro.so'
