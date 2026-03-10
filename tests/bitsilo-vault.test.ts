@@ -51,3 +51,48 @@ describe("bitsilo-vault", () => {
     );
     expect(result).toBeErr(Cl.uint(101)); // ERR_ZERO_AMOUNT
   });
+
+  it("accepts a valid deposit and mints shares", () => {
+    const depositAmount = 1000;
+
+    // wallet1 already has sBTC from boot deposits, deposit into vault
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "deposit", [Cl.uint(depositAmount)], wallet1
+    );
+    expect(result).toBeOk(Cl.uint(depositAmount * SHARE_PRECISION));
+
+    // Verify shares
+    const shares = simnet.callReadOnlyFn(
+      `${deployer}.bitsilo-vault`, "get-shares", [Cl.principal(wallet1)], wallet1
+    );
+    expect(shares.result).toBeOk(Cl.uint(depositAmount * SHARE_PRECISION));
+
+    // Verify vault total
+    const totalSbtc = simnet.callReadOnlyFn(
+      `${deployer}.bitsilo-vault`, "get-total-sbtc", [], deployer
+    );
+    expect(totalSbtc.result).toBeOk(Cl.uint(depositAmount));
+  });
+
+  it("rejects deposit exceeding deposit cap", () => {
+    // Default cap is 10_000_000_000 (100 sBTC). Deposit just over it.
+    // First set a small cap, then try to deposit over it.
+    simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "set-deposit-cap", [Cl.uint(500)], deployer
+    );
+
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "deposit", [Cl.uint(501)], wallet1
+    );
+    expect(result).toBeErr(Cl.uint(104)); // ERR_DEPOSIT_CAP_EXCEEDED
+  });
+
+  // -----------------------------------------------
+  // Withdrawals
+  // -----------------------------------------------
+  it("rejects zero-amount withdrawal", () => {
+    const { result } = simnet.callPublicFn(
+      `${deployer}.bitsilo-vault`, "withdraw", [Cl.uint(0)], wallet1
+    );
+    expect(result).toBeErr(Cl.uint(101)); // ERR_ZERO_AMOUNT
+  });
